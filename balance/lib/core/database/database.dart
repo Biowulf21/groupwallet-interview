@@ -15,7 +15,8 @@ part 'database.g.dart';
 class Database extends _$Database {
   Database() : super(_openConnection());
 
-  static Future<String> resourcePath(String name) async => p.join(await _resourcesPath, name);
+  static Future<String> resourcePath(String name) async =>
+      p.join(await _resourcesPath, name);
 
   static Future<String> get _resourcesPath async {
     final path = p.join(await _rootPath, "resources");
@@ -32,7 +33,23 @@ class Database extends _$Database {
   }
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration {
+    return MigrationStrategy(
+      onCreate: (Migrator m) async {
+        await m.createAll();
+      },
+      onUpgrade: (Migrator m, int from, int to) async {
+        if (from < 2) {
+          // we added the dueDate property in the change from version 1 to
+          // version 2
+          await m.addColumn(transactions, transactions.name);
+        }
+      },
+    );
+  }
 
   static LazyDatabase _openConnection() => LazyDatabase(() async {
         final file = File(p.join(await Database._rootPath, 'db.sqlite'));

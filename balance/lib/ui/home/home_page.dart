@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   State<StatefulWidget> createState() => _HomePageState();
 }
@@ -22,7 +24,7 @@ class _HomePageState extends State<HomePage> {
           stream: _groupsDao.watch(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
-              return Text("Loading...");
+              return const Text("Loading...");
             }
             return Column(
               mainAxisSize: MainAxisSize.max,
@@ -38,16 +40,18 @@ class _HomePageState extends State<HomePage> {
                         _groupsDao.insert(_controller.text);
                         _controller.text = "";
                       },
-                      child: Text("Create")),
+                      child: const Text("Create")),
                 ]),
                 Expanded(
                   child: ListView.builder(
                       itemCount: snapshot.requireData.length,
                       itemBuilder: (context, index) => ListTile(
                             title: Text(snapshot.requireData[index].name),
-                            subtitle: Text(snapshot.requireData[index].balance.toString()),
+                            subtitle: Text(
+                                snapshot.requireData[index].balance.toString()),
                             onTap: () {
-                              GoRouterHelper(context).push("/groups/${snapshot.requireData[index].id}");
+                              GoRouterHelper(context).push(
+                                  "/groups/${snapshot.requireData[index].id}");
                             },
                           )),
                 ),

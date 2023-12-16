@@ -1,7 +1,11 @@
 import 'package:balance/core/database/dao/groups_dao.dart';
+import 'package:balance/core/database/dao/transactions_dao.dart';
+import 'package:balance/core/database/tables/transactions.dart';
 import 'package:balance/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 class GroupPage extends StatefulWidget {
   final String groupId;
@@ -13,6 +17,7 @@ class GroupPage extends StatefulWidget {
 
 class _GroupPageState extends State<GroupPage> {
   late final GroupsDao _groupsDao = getIt.get<GroupsDao>();
+  late final TransactionsDAO _transactionsDAO = getIt.get<TransactionsDAO>();
 
   final _incomeController = TextEditingController();
   final _expenseController = TextEditingController();
@@ -26,7 +31,7 @@ class _GroupPageState extends State<GroupPage> {
           stream: _groupsDao.watchGroup(widget.groupId),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
-              return Text("Loading...");
+              return const Text("Loading...");
             }
             return Column(
               mainAxisSize: MainAxisSize.max,
@@ -37,8 +42,11 @@ class _GroupPageState extends State<GroupPage> {
                   Expanded(
                     child: TextFormField(
                       controller: _incomeController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r"[0-9]"))],
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r"[0-9]"))
+                      ],
                       decoration: const InputDecoration(
                         contentPadding: EdgeInsets.symmetric(vertical: 10),
                         suffixText: "\$",
@@ -49,17 +57,25 @@ class _GroupPageState extends State<GroupPage> {
                       onPressed: () {
                         final amount = int.parse(_incomeController.text);
                         final balance = snapshot.data?.balance ?? 0;
-                        _groupsDao.adjustBalance(balance + amount, widget.groupId);
+                        _groupsDao.adjustBalance(
+                            balance + amount, widget.groupId);
                         _incomeController.text = "";
+
+                        const name = "Added new income";
+
+                        _transactionsDAO.insert(widget.groupId, name, amount);
                       },
-                      child: Text("Add income")),
+                      child: const Text("Add income")),
                 ]),
                 Row(children: [
                   Expanded(
                     child: TextFormField(
                       controller: _expenseController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r"[0-9]"))],
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r"[0-9]"))
+                      ],
                       decoration: const InputDecoration(
                         contentPadding: EdgeInsets.symmetric(vertical: 10),
                         suffixText: "\$",
@@ -70,11 +86,60 @@ class _GroupPageState extends State<GroupPage> {
                       onPressed: () {
                         final amount = int.parse(_expenseController.text);
                         final balance = snapshot.data?.balance ?? 0;
-                        _groupsDao.adjustBalance(balance - amount, widget.groupId);
+                        _groupsDao.adjustBalance(
+                            balance - amount, widget.groupId);
+
                         _expenseController.text = "";
+
+                        const name = "Added new expense";
+
+                        _transactionsDAO.insert(
+                            widget.groupId, name, amount * -1);
                       },
-                      child: Text("Add expense")),
+                      child: const Text("Add expense")),
                 ]),
+                Expanded(
+                    child: Padding(
+                        padding: const EdgeInsets.all(15),
+                        child: StreamBuilder(
+                            stream: _transactionsDAO.watch(widget.groupId),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) {
+                                return const Text("No data to load");
+                              }
+
+                              if (snapshot.hasError) {
+                                return Text(snapshot.error.toString());
+                              }
+
+                              if (snapshot.data == null) {
+                                return const Text("No transactions");
+                              }
+
+                              return ListView.builder(
+                                  itemCount: snapshot.requireData.length,
+                                  itemBuilder: (context, index) {
+                                    final formatter = NumberFormat('#,###');
+                                    final formattedAmount = formatter.format(
+                                        snapshot.requireData[index].amount);
+                                    return GestureDetector(
+                                      onTap: () {},
+                                      child: ListTile(
+                                        title: Text(snapshot
+                                            .requireData[index].name
+                                            .toString()),
+                                        subtitle: Text(formattedAmount),
+                                        onTap: () {
+                                          print(
+                                              "/transactions/edit/${snapshot.requireData[index].id}");
+
+                                          GoRouterHelper(context).push(
+                                              "/transactions/edit/${snapshot.requireData[index].id}?groupId=${widget.groupId}");
+                                        },
+                                      ),
+                                    );
+                                  });
+                            }))),
               ],
             );
           },
